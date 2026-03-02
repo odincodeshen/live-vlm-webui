@@ -30,7 +30,6 @@ import re
 import urllib.request
 from pathlib import Path
 
-
 # Test video file (HD 720p, publicly hosted, Creative Commons from Big Buck Bunny)
 # Using Google Cloud Storage which is fast and reliable
 TEST_VIDEO_URL = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
@@ -403,8 +402,7 @@ def test_full_video_analysis_workflow(page, check_requirements):
     time.sleep(5)  # Give more time for WebRTC to start and page to expand
 
     # Find and check ALL scrollable elements on the page
-    scrollable_elements = page.evaluate(
-        """
+    scrollable_elements = page.evaluate("""
         () => {
             const allElements = document.querySelectorAll('*');
             const scrollable = [];
@@ -428,8 +426,7 @@ def test_full_video_analysis_workflow(page, check_requirements):
 
             return scrollable;
         }
-    """
-    )
+    """)
 
     print(f"   🔍 Found {len(scrollable_elements)} scrollable elements:")
     for elem in scrollable_elements[:5]:  # Show first 5
@@ -438,8 +435,7 @@ def test_full_video_analysis_workflow(page, check_requirements):
         )
 
     # Now try to find the best scroll container
-    scroll_container = page.evaluate(
-        """
+    scroll_container = page.evaluate("""
         () => {
             // Find ALL elements with overflow scroll/auto
             const allElements = document.querySelectorAll('*');
@@ -483,8 +479,7 @@ def test_full_video_analysis_workflow(page, check_requirements):
                 canScroll: document.body.scrollHeight > document.documentElement.clientHeight
             };
         }
-    """
-    )
+    """)
 
     print(f"   ℹ️  Scroll container: {scroll_container['selector']}")
     print(
@@ -818,8 +813,7 @@ def test_full_video_analysis_workflow(page, check_requirements):
         # Try to extract the actual VLM analysis text from the page
         try:
             # Get all visible text from the page body
-            page_text = page.evaluate(
-                """
+            page_text = page.evaluate("""
                 () => {
                     // Get text from video overlay or body
                     const overlay = document.querySelector('.video-overlay, .overlay, #text-overlay');
@@ -832,8 +826,7 @@ def test_full_video_analysis_workflow(page, check_requirements):
                     const lines = bodyText.split('\\n').filter(line => line.length > 30);
                     return lines.length > 0 ? lines[lines.length - 1] : bodyText;
                 }
-            """
-            )
+            """)
 
             # Check if we found analysis-like text (contains typical VLM words)
             if (
