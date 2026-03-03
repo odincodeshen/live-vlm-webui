@@ -323,22 +323,27 @@ async def websocket_handler(request):
     ws_to_session[ws] = session_id
     session_websockets[session_id].add(ws)
     websockets.add(ws)
-    logger.info(f"WebSocket client connected. session_id={session_id}, total clients: {len(websockets)}")
+    logger.info(
+        f"WebSocket client connected. session_id={session_id}, total clients: {len(websockets)}"
+    )
 
     session = get_or_create_session(session_id)
     svc = session["vlm_service"]
 
     try:
         # Send initial message with current server configuration (include session_id if we generated it)
-        await ws.send_json({
-            "type": "status",
-            "text": "Connected to server",
-            "status": "Ready",
-            "session_id": session_id,
-        })
+        await ws.send_json(
+            {
+                "type": "status",
+                "text": "Connected to server",
+                "status": "Ready",
+                "session_id": session_id,
+            }
+        )
 
         # Send current server configuration for this session
         from .video_processor import VideoProcessorTrack as _VPT
+
         await ws.send_json(
             {
                 "type": "server_config",
@@ -363,7 +368,9 @@ async def websocket_handler(request):
                         max_tokens = data.get("max_tokens")
                         if new_prompt and svc:
                             svc.update_prompt(new_prompt, max_tokens)
-                            logger.info(f"[{session_id}] Prompt updated: {new_prompt}, max_tokens: {max_tokens}")
+                            logger.info(
+                                f"[{session_id}] Prompt updated: {new_prompt}, max_tokens: {max_tokens}"
+                            )
 
                             await ws.send_json(
                                 {
@@ -381,10 +388,10 @@ async def websocket_handler(request):
                         if new_model and svc:
                             svc.model = new_model
                             if api_base:
-                                svc.update_api_settings(
-                                    api_base, api_key if api_key else None
+                                svc.update_api_settings(api_base, api_key if api_key else None)
+                                logger.info(
+                                    f"[{session_id}] Model updated: {new_model}, API: {api_base}"
                                 )
-                                logger.info(f"[{session_id}] Model updated: {new_model}, API: {api_base}")
                             else:
                                 logger.info(f"[{session_id}] Model updated: {new_model}")
 
@@ -422,11 +429,17 @@ async def websocket_handler(request):
                     elif data.get("type") == "set_debug":
                         session_data = get_or_create_session(session_id)
                         if "show_request_payload" in data:
-                            session_data["show_request_payload"] = bool(data["show_request_payload"])
+                            session_data["show_request_payload"] = bool(
+                                data["show_request_payload"]
+                            )
                         if "show_response_payload" in data:
-                            session_data["show_response_payload"] = bool(data["show_response_payload"])
+                            session_data["show_response_payload"] = bool(
+                                data["show_response_payload"]
+                            )
                         logger.debug(
-                            f"[{session_id}] Debug: request_payload={session_data.get('show_request_payload')}, response_payload={session_data.get('show_response_payload')}"
+                            f"[{session_id}] Debug: request_payload="
+                            f"{session_data.get('show_request_payload')}, response_payload="
+                            f"{session_data.get('show_response_payload')}"
                         )
 
                     elif data.get("type") == "update_max_latency":
@@ -440,7 +453,9 @@ async def websocket_handler(request):
                                 VideoProcessorTrack.max_frame_latency = max_latency
                                 status = "disabled" if max_latency == 0 else f"{max_latency:.1f}s"
                                 old_status = "disabled" if old_value == 0 else f"{old_value:.1f}s"
-                                logger.info(f"[{session_id}] Max frame latency updated: {old_status} → {status}")
+                                logger.info(
+                                    f"[{session_id}] Max frame latency updated: {old_status} → {status}"
+                                )
 
                                 await ws.send_json(
                                     {"type": "max_latency_updated", "max_latency": max_latency}
@@ -459,7 +474,9 @@ async def websocket_handler(request):
         session_websockets[session_id].discard(ws)
         ws_to_session.pop(ws, None)
         websockets.discard(ws)
-        logger.info(f"WebSocket client disconnected. session_id={session_id}, total clients: {len(websockets)}")
+        logger.info(
+            f"WebSocket client disconnected. session_id={session_id}, total clients: {len(websockets)}"
+        )
 
     return ws
 
