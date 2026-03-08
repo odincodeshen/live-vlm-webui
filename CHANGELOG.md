@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for 0.4.0
-- **Multi-session support for cloud deployment**: Scope multi-user / multi-session architecture for cloud deployments (see current limitations in 0.3.0).
+---
+
+## [0.4.0] - 2026-03-02
+
+**Cloud deployment, debug payloads, and docs**
+
+### Added
+- **Multi-session support**: Per-session VLM state and WebSocket routing so multiple tabs/users get isolated streams and config (cloud-friendly).
+- **Cloud deployment config overrides**: Environment variables `LIVE_VLM_API_BASE`, `LIVE_VLM_DEFAULT_MODEL`, and `LIVE_VLM_PROCESS_EVERY` override default API base URL, default model, and frame processing interval (e.g. `LIVE_VLM_PROCESS_EVERY=150` for ~5 s interval to reduce API quota; `LIVE_VLM_API_BASE=https://integrate.api.nvidia.com/v1` and `LIVE_VLM_DEFAULT_MODEL=google/gemma-3-4b-it` for NVIDIA API Catalog). Documented in Docker guide with `-e` / `--env-file` examples.
+- **Debug payloads**: In Settings (gear) → Debug: toggles for **Show request payload** and **Show response payload**. Collapsible request JSON (under prompt) and response JSON (under VLM result) for debugging how image and prompt are sent and what the API returns.
+
+### Fixed
+- **Server startup**: Resolved `UnboundLocalError` for `os` when using env overrides (removed redundant `import os`/`import sys` inside `main()`).
+
+### Changed
+- **Server config**: `server_config` now includes `process_every` so the UI shows the server default frame interval on connect.
+- **README**: Ollama on Jetson Thor — recommend upgrading to latest Ollama instead of pinning to 0.12.9; link to troubleshooting for workarounds if needed.
 
 ---
 

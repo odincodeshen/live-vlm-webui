@@ -129,6 +129,37 @@ docker run -d \
 
 **Note:** No GPU support on Mac in Docker. CPU monitoring only.
 
+### Cloud deployment (config overrides)
+
+When running in the cloud (e.g. Digital Ocean) with the NVIDIA API, you can set default API base and frame interval via environment variables. Pass them with `-e` or `--env-file`:
+
+```bash
+docker run -d \
+  --name live-vlm-webui \
+  -p 8090:8090 \
+  -e LIVE_VLM_API_BASE=https://integrate.api.nvidia.com/v1 \
+  -e LIVE_VLM_PROCESS_EVERY=150 \
+  -e LIVE_VLM_DEFAULT_MODEL=google/gemma-3-4b-it \
+  ghcr.io/nvidia-ai-iot/live-vlm-webui:latest
+```
+
+- **`LIVE_VLM_API_BASE`** – Default API base URL when not overridden by CLI (e.g. NVIDIA Integrate).
+- **`LIVE_VLM_DEFAULT_MODEL`** – Default model name when not overridden by CLI (e.g. `google/gemma-3-4b-it` for NVIDIA API Catalog).
+- **`LIVE_VLM_PROCESS_EVERY`** – Process every Nth frame (e.g. `150` ≈ 5 seconds at 30 fps to reduce API usage).
+
+Using an env file:
+
+```bash
+# .env.cloud
+LIVE_VLM_API_BASE=https://integrate.api.nvidia.com/v1
+LIVE_VLM_PROCESS_EVERY=150
+LIVE_VLM_DEFAULT_MODEL=google/gemma-3-4b-it
+```
+
+```bash
+docker run -d --name live-vlm-webui -p 8090:8090 --env-file .env.cloud ghcr.io/nvidia-ai-iot/live-vlm-webui:latest
+```
+
 ---
 
 ## 🛠️ Container Management
