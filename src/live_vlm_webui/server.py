@@ -173,8 +173,8 @@ async def detect_local_service_and_model():
     Returns: (api_base, model_name) or (None, None) if no service found
     """
     services = [
-        ("http://localhost:11434/v1", "Ollama"),
         ("http://localhost:8000/v1", "vLLM"),
+        ("http://localhost:11434/v1", "Ollama"),
         ("http://localhost:30000/v1", "SGLang"),
     ]
 
