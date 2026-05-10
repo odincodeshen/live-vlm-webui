@@ -44,6 +44,35 @@ from .video_processor import VideoProcessorTrack
 from .gpu_monitor import create_monitor
 from .rtsp_track import RTSPVideoTrack
 
+import requests
+import time
+
+INTENT_INGRESS_URL = os.environ.get("INTENT_INGRESS_URL", "http://127.0.0.1:7071/intent")
+INTENT_DEDUP_MS = int(os.environ.get("INTENT_DEDUP_MS", "300"))
+_last_intent_sent = {"text": None, "ts": 0.0}
+
+def maybe_post_intent(text: str):
+    """
+    Post STOP/TROT to local intent_ingress (file bus writer).
+    Safe: swallow exceptions; does not break WebUI.
+    """
+    t = (text or "").strip().upper()
+    if t not in ("STOP", "TROT"):
+        return
+
+    now = time.time() * 1000.0
+    if _last_intent_sent["text"] == t and (now - _last_intent_sent["ts"]) < INTENT_DEDUP_MS:
+        return
+
+    _last_intent_sent["text"] = t
+    _last_intent_sent["ts"] = now
+
+    try:
+        requests.post(INTENT_INGRESS_URL, json={"text": t}, timeout=0.2)
+    except Exception:
+        pass
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -112,6 +141,7 @@ def get_session_callback(session_id: str):
                         out["response_payload"] = json.loads(json.dumps(payload, default=str))
                     except (TypeError, ValueError):
                         out["response_payload"] = payload
+        maybe_post_intent(text)
         send_to_session(session_id, json.dumps(out))
 
     return callback
