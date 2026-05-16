@@ -217,7 +217,7 @@
         }
 
         textarea {
-            min-height: 120px;
+            min-height: 170px;
             resize: vertical;
             line-height: 1.35;
         }
@@ -332,7 +332,7 @@
                     <option value="rtsp">RTSP</option>
                     <option value="webcam">Webcam</option>
                 </select>
-                <input id="rtspUrl" value="http://192.168.0.8:8080/stream?topic=/usb_cam/image_raw" placeholder="RTSP or HTTP stream URL">
+                <input id="rtspUrl" value="__ROBOT_STREAM_URL__" placeholder="RTSP or HTTP stream URL">
                 <button class="primary" id="startBtn">Start</button>
                 <button id="stopBtn">Stop</button>
             </div>
@@ -375,6 +375,10 @@
                     <span>Model</span><span id="modelValue">--</span>
                     <span>Backend</span><span id="backendValue">--</span>
                 </div>
+                <select id="promptPreset" style="margin-bottom: 8px;">
+                    <option value="default">Default</option>
+                    <option value="robot_commander">Robot Commander</option>
+                </select>
                 <textarea id="promptInput">Output exactly ONE word: TROT or STOP. No other text.</textarea>
                 <div class="buttons">
                     <button class="primary" id="applyPromptBtn">Apply Prompt</button>
@@ -415,6 +419,7 @@
         const adapterStatus = document.getElementById('adapterStatus');
         const sourceMode = document.getElementById('sourceMode');
         const rtspUrl = document.getElementById('rtspUrl');
+        const promptPreset = document.getElementById('promptPreset');
         const promptInput = document.getElementById('promptInput');
         const modelValue = document.getElementById('modelValue');
         const backendValue = document.getElementById('backendValue');
@@ -424,6 +429,11 @@
         let websocket = null;
         let peerConnection = null;
         let localStream = null;
+
+        const promptPresets = {
+            default: 'Output exactly ONE word: TROT or STOP. No other text.',
+            robot_commander: 'You are controlling a robot from a camera view. If you clearly see a thumbs-up hand gesture, output exactly the single word TROT. If you clearly see an open hand with five fingers (palm facing camera), output exactly the single word STOP. Otherwise output exactly the single word STOP. No other text, no punctuation, no markdown.',
+        };
 
         function setPill(el, text, cls) {
             el.textContent = text;
@@ -600,6 +610,10 @@
                 prompt: promptInput.value.trim(),
             }));
         }
+
+        promptPreset.addEventListener('change', () => {
+            promptInput.value = promptPresets[promptPreset.value] || promptPresets.default;
+        });
 
         function formatJson(payload) {
             if (!payload) return 'No data yet.';
