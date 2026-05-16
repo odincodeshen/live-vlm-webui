@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenPAVE Console</title>
+    <style>
+        :root {
+            --bg: #0b0c0f;
+            --panel: #15171c;
+            --panel-2: #1e2229;
+            --line: #303744;
+            --text: #eef2f7;
+            --muted: #9aa7b6;
+            --good: #38b277;
+            --warn: #d99b2b;
+            --bad: #e05d5d;
+            --accent: #6eb6ff;
+            --control: #232a34;
+            --control-hover: #2d3744;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        .topbar {
+            height: 56px;
+            padding: 0 18px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #101217;
+        }
+
+        .brand {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            min-width: 0;
+        }
+
+        .brand strong {
+            font-size: 18px;
+            letter-spacing: 0;
+        }
+
+        .brand span {
+            color: var(--muted);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .status-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .pill {
+            border: 1px solid var(--line);
+            background: var(--panel);
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .pill.good { color: var(--good); }
+        .pill.warn { color: var(--warn); }
+        .pill.bad { color: var(--bad); }
+
+        .layout {
+            min-height: calc(100vh - 56px);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 380px;
+        }
+
+        .stream-pane {
+            min-width: 0;
+            padding: 16px;
+            border-right: 1px solid var(--line);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .stream-toolbar {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr) auto auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .stream-box {
+            position: relative;
+            min-height: 380px;
+            background: #050607;
+            border: 1px solid var(--line);
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            min-height: 380px;
+            object-fit: contain;
+            display: block;
+            background: #050607;
+        }
+
+        .overlay {
+            position: absolute;
+            left: 12px;
+            bottom: 12px;
+            right: 12px;
+            padding: 10px 12px;
+            background: rgba(5, 6, 7, 0.78);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--text);
+            font-size: 13px;
+            min-height: 38px;
+        }
+
+        .side {
+            min-width: 0;
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+            align-content: start;
+            max-height: calc(100vh - 56px);
+            overflow: auto;
+        }
+
+        section {
+            border: 1px solid var(--line);
+            background: var(--panel);
+            padding: 12px;
+        }
+
+        h2 {
+            margin: 0 0 10px;
+            font-size: 13px;
+            font-weight: 650;
+            color: var(--text);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            padding: 9px;
+            min-height: 58px;
+        }
+
+        .metric label {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+
+        .metric strong {
+            font-size: 17px;
+            font-weight: 650;
+        }
+
+        .bar {
+            margin-top: 7px;
+            height: 4px;
+            background: #0b0c0f;
+            overflow: hidden;
+        }
+
+        .bar span {
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: var(--control);
+            color: var(--text);
+            padding: 9px 10px;
+            border-radius: 0;
+            outline: none;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            line-height: 1.35;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        button {
+            border: 1px solid var(--line);
+            background: var(--control);
+            color: var(--text);
+            padding: 9px 12px;
+            cursor: pointer;
+            border-radius: 0;
+        }
+
+        button:hover {
+            background: var(--control-hover);
+        }
+
+        button.primary {
+            background: #184f7c;
+            border-color: #2d78b3;
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text);
+            font-size: 12px;
+            line-height: 1.35;
+            max-height: 190px;
+            overflow: auto;
+            background: #101217;
+            border: 1px solid var(--line);
+            padding: 10px;
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 92px minmax(0, 1fr);
+            gap: 6px 8px;
+            font-size: 12px;
+        }
+
+        .kv span:nth-child(odd) {
+            color: var(--muted);
+        }
+
+        @media (max-width: 980px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .stream-pane {
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .side {
+                max-height: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .topbar {
+                height: auto;
+                min-height: 56px;
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            .brand {
+                flex-direction: column;
+                gap: 2px;
+            }
+
+            .stream-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <strong>OpenPAVE Console</strong>
+            <span>local edge Physical-AI workflow</span>
+        </div>
+        <div class="status-row">
+            <span class="pill" id="wsStatus">WS disconnected</span>
+            <span class="pill" id="streamStatus">stream idle</span>
+            <span class="pill" id="adapterStatus">adapter --</span>
+        </div>
+    </header>
+
+    <main class="layout">
+        <div class="stream-pane">
+            <div class="stream-toolbar">
+                <select id="sourceMode">
+                    <option value="rtsp">RTSP</option>
+                    <option value="webcam">Webcam</option>
+                </select>
+                <input id="rtspUrl" value="http://192.168.0.8:8080/stream?topic=/usb_cam/image_raw" placeholder="RTSP or HTTP stream URL">
+                <button class="primary" id="startBtn">Start</button>
+                <button id="stopBtn">Stop</button>
+            </div>
+            <div class="stream-box">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="overlay" id="vlmOverlay">No VLM result yet.</div>
+            </div>
+        </div>
+
+        <aside class="side">
+            <section>
+                <h2>System Metrics</h2>
+                <div class="metrics">
+                    <div class="metric">
+                        <label>CPU</label>
+                        <strong id="cpuValue">--</strong>
+                        <div class="bar"><span id="cpuBar"></span></div>
+                    </div>
+                    <div class="metric">
+                        <label>Memory</label>
+                        <strong id="ramValue">--</strong>
+                        <div class="bar"><span id="ramBar"></span></div>
+                    </div>
+                    <div class="metric">
+                        <label>GPU</label>
+                        <strong id="gpuValue">--</strong>
+                        <div class="bar"><span id="gpuBar"></span></div>
+                    </div>
+                    <div class="metric">
+                        <label>GPU Memory</label>
+                        <strong id="vramValue">--</strong>
+                        <div class="bar"><span id="vramBar"></span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Prompt</h2>
+                <div class="kv" style="margin-bottom: 8px;">
+                    <span>Model</span><span id="modelValue">--</span>
+                    <span>Backend</span><span id="backendValue">--</span>
+                </div>
+                <textarea id="promptInput">Output exactly ONE word: TROT or STOP. No other text.</textarea>
+                <div class="buttons">
+                    <button class="primary" id="applyPromptBtn">Apply Prompt</button>
+                </div>
+            </section>
+
+            <section>
+                <h2>VLM Result</h2>
+                <pre id="vlmResult">No result yet.</pre>
+            </section>
+
+            <section>
+                <h2>Parsed Intent</h2>
+                <div class="kv">
+                    <span>Intent</span><span id="intentValue">--</span>
+                    <span>Source</span><span id="intentSource">--</span>
+                    <span>Request</span><span id="requestId">--</span>
+                </div>
+            </section>
+
+            <section>
+                <h2>Command Result</h2>
+                <pre id="commandResult">Waiting for /tmp/vla_command_result.json</pre>
+            </section>
+
+            <section>
+                <h2>Robot State</h2>
+                <pre id="robotState">Waiting for /tmp/vla_robot_state.json</pre>
+            </section>
+        </aside>
+    </main>
+
+    <script>
+        const sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+        const video = document.getElementById('video');
+        const wsStatus = document.getElementById('wsStatus');
+        const streamStatus = document.getElementById('streamStatus');
+        const adapterStatus = document.getElementById('adapterStatus');
+        const sourceMode = document.getElementById('sourceMode');
+        const rtspUrl = document.getElementById('rtspUrl');
+        const promptInput = document.getElementById('promptInput');
+        const modelValue = document.getElementById('modelValue');
+        const backendValue = document.getElementById('backendValue');
+        const vlmResult = document.getElementById('vlmResult');
+        const vlmOverlay = document.getElementById('vlmOverlay');
+
+        let websocket = null;
+        let peerConnection = null;
+        let localStream = null;
+
+        function setPill(el, text, cls) {
+            el.textContent = text;
+            el.className = `pill ${cls || ''}`.trim();
+        }
+
+        function pct(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+            return Math.max(0, Math.min(100, Number(value)));
+        }
+
+        function setMetric(valueId, barId, value, suffix = '%') {
+            const parsed = pct(value);
+            document.getElementById(valueId).textContent = parsed === null ? '--' : `${parsed.toFixed(1)}${suffix}`;
+            document.getElementById(barId).style.width = parsed === null ? '0%' : `${parsed}%`;
+        }
+
+        function connectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) return;
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            websocket = new WebSocket(`${protocol}//${window.location.host}/ws?session_id=${encodeURIComponent(sessionId)}`);
+
+            websocket.onopen = () => setPill(wsStatus, 'WS connected', 'good');
+            websocket.onerror = () => setPill(wsStatus, 'WS error', 'bad');
+            websocket.onclose = () => {
+                setPill(wsStatus, 'WS reconnecting', 'warn');
+                setTimeout(connectWebSocket, 2000);
+            };
+
+            websocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'server_config') {
+                    modelValue.textContent = data.model || '--';
+                    backendValue.textContent = data.api_base || '--';
+                    if (data.prompt) promptInput.value = data.prompt;
+                } else if (data.type === 'prompt_updated') {
+                    promptInput.value = data.prompt || promptInput.value;
+                } else if (data.type === 'model_updated') {
+                    modelValue.textContent = data.model || '--';
+                    backendValue.textContent = data.api_base || backendValue.textContent;
+                } else if (data.type === 'vlm_response') {
+                    vlmResult.textContent = data.text || '';
+                    vlmOverlay.textContent = data.text || '';
+                    if (data.metrics) {
+                        const latency = Math.round(data.metrics.last_latency_ms || 0);
+                        vlmResult.textContent += `\n\nlatency_ms: ${latency}\ntotal_inferences: ${data.metrics.total_inferences || 0}`;
+                    }
+                } else if (data.type === 'gpu_stats') {
+                    updateSystemStats(data.stats || {});
+                } else if (data.type === 'status') {
+                    setPill(wsStatus, data.status || 'WS connected', 'good');
+                }
+            };
+        }
+
+        function updateSystemStats(stats) {
+            setMetric('cpuValue', 'cpuBar', stats.cpu_percent);
+
+            if (stats.ram_used_gb !== undefined && stats.ram_total_gb) {
+                document.getElementById('ramValue').textContent =
+                    `${Number(stats.ram_used_gb).toFixed(1)}/${Number(stats.ram_total_gb).toFixed(1)} GB`;
+                document.getElementById('ramBar').style.width =
+                    `${pct((stats.ram_used_gb / stats.ram_total_gb) * 100) || 0}%`;
+            } else {
+                setMetric('ramValue', 'ramBar', null);
+            }
+
+            setMetric('gpuValue', 'gpuBar', stats.gpu_percent);
+
+            if (stats.vram_used_gb !== undefined && stats.vram_total_gb) {
+                document.getElementById('vramValue').textContent =
+                    `${Number(stats.vram_used_gb).toFixed(1)}/${Number(stats.vram_total_gb).toFixed(1)} GB`;
+                document.getElementById('vramBar').style.width =
+                    `${pct((stats.vram_used_gb / stats.vram_total_gb) * 100) || 0}%`;
+            } else {
+                document.getElementById('vramValue').textContent = '--';
+                document.getElementById('vramBar').style.width = '0%';
+            }
+        }
+
+        async function startStream() {
+            connectWebSocket();
+            stopStream();
+            setPill(streamStatus, 'stream connecting', 'warn');
+
+            peerConnection = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            peerConnection.ontrack = (event) => {
+                video.srcObject = event.streams[0];
+                video.play().catch(() => {});
+                setPill(streamStatus, 'streaming', 'good');
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                const state = peerConnection.iceConnectionState;
+                if (state === 'connected' || state === 'completed') setPill(streamStatus, 'streaming', 'good');
+                if (state === 'failed' || state === 'closed' || state === 'disconnected') setPill(streamStatus, `stream ${state}`, 'bad');
+            };
+
+            const mode = sourceMode.value;
+            if (mode === 'webcam') {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            } else {
+                peerConnection.addTransceiver('video', { direction: 'recvonly' });
+            }
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            await waitForIceGathering(peerConnection);
+
+            const body = {
+                sdp: peerConnection.localDescription.sdp,
+                type: peerConnection.localDescription.type,
+                session_id: sessionId,
+            };
+            if (mode === 'rtsp') body.rtsp_url = rtspUrl.value.trim();
+
+            const response = await fetch('/offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || 'Failed to start stream');
+            }
+
+            const answer = await response.json();
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+
+        function waitForIceGathering(pc) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') return resolve();
+                const checkState = () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        pc.removeEventListener('icegatheringstatechange', checkState);
+                        resolve();
+                    }
+                };
+                pc.addEventListener('icegatheringstatechange', checkState);
+                setTimeout(resolve, 5000);
+            });
+        }
+
+        function stopStream() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            video.srcObject = null;
+            setPill(streamStatus, 'stream idle', '');
+        }
+
+        async function applyPrompt() {
+            connectWebSocket();
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                setPill(wsStatus, 'WS not ready', 'warn');
+                return;
+            }
+            websocket.send(JSON.stringify({
+                type: 'update_prompt',
+                prompt: promptInput.value.trim(),
+            }));
+        }
+
+        function formatJson(payload) {
+            if (!payload) return 'No data yet.';
+            return JSON.stringify(payload, null, 2);
+        }
+
+        async function refreshRuntime() {
+            try {
+                const response = await fetch('/api/pave/runtime');
+                const runtime = await response.json();
+                const command = runtime.command_result;
+                const state = runtime.robot_state;
+
+                document.getElementById('commandResult').textContent = formatJson(command);
+                document.getElementById('robotState').textContent = formatJson(state);
+
+                if (state && !state.error) {
+                    adapterStatus.textContent = `adapter ${state.adapter || '--'} / ${state.status || '--'}`;
+                    adapterStatus.className = `pill ${state.status === 'error' ? 'bad' : 'good'}`;
+                }
+
+                if (command && !command.error) {
+                    document.getElementById('intentValue').textContent = command.intent || '--';
+                    document.getElementById('intentSource').textContent = command.source || '--';
+                    document.getElementById('requestId').textContent = command.request_id || '--';
+                }
+            } catch (error) {
+                document.getElementById('commandResult').textContent = `Runtime fetch error: ${error.message}`;
+            }
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            startStream().catch(error => {
+                setPill(streamStatus, `stream error`, 'bad');
+                vlmOverlay.textContent = error.message;
+            });
+        });
+        document.getElementById('stopBtn').addEventListener('click', stopStream);
+        document.getElementById('applyPromptBtn').addEventListener('click', applyPrompt);
+
+        connectWebSocket();
+        refreshRuntime();
+        setInterval(refreshRuntime, 1000);
+    </script>
+</body>
+</html>

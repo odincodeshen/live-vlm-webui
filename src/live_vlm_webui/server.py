@@ -49,6 +49,8 @@ import time
 
 INTENT_INGRESS_URL = os.environ.get("INTENT_INGRESS_URL", "http://127.0.0.1:7071/intent")
 INTENT_DEDUP_MS = int(os.environ.get("INTENT_DEDUP_MS", "300"))
+COMMAND_RESULT_PATH = os.environ.get("COMMAND_RESULT_PATH", "/tmp/vla_command_result.json")
+ROBOT_STATE_PATH = os.environ.get("ROBOT_STATE_PATH", "/tmp/vla_robot_state.json")
 _last_intent_sent = {"text": None, "ts": 0.0}
 
 def maybe_post_intent(text: str):
@@ -244,6 +246,33 @@ async def index(request):
     """Serve the main HTML page"""
     content = open(os.path.join(os.path.dirname(__file__), "static", "index.html"), "r").read()
     return web.Response(content_type="text/html", text=content)
+
+
+async def pave_console(request):
+    """Serve the lightweight OpenPAVE console."""
+    content = open(os.path.join(os.path.dirname(__file__), "static", "pave.html"), "r").read()
+    return web.Response(content_type="text/html", text=content)
+
+
+def read_json_file(path: str):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def pave_runtime_status(request):
+    """Return latest Stage 1 command and robot state feedback files."""
+    payload = {
+        "command_result_path": COMMAND_RESULT_PATH,
+        "robot_state_path": ROBOT_STATE_PATH,
+        "command_result": read_json_file(COMMAND_RESULT_PATH),
+        "robot_state": read_json_file(ROBOT_STATE_PATH),
+    }
+    return web.Response(content_type="application/json", text=json.dumps(payload, default=str))
 
 
 async def models(request):
@@ -946,10 +975,12 @@ async def create_app(test_mode=False):
     # Create web application
     app = web.Application()
     app.router.add_get("/", index)
+    app.router.add_get("/pave", pave_console)
     app.router.add_get("/models", models)
     app.router.add_get("/detect-services", detect_services)
     app.router.add_get("/ws", websocket_handler)
     app.router.add_post("/offer", offer)
+    app.router.add_get("/api/pave/runtime", pave_runtime_status)
 
     # RTSP endpoints
     app.router.add_post("/api/rtsp/start", rtsp_start)
