@@ -56,6 +56,11 @@ INTENT_FORWARDING_ENABLED = os.environ.get("INTENT_FORWARDING_ENABLED", "1").low
 }
 TROT_CONFIRMATIONS = max(1, int(os.environ.get("TROT_CONFIRMATIONS", "2")))
 TROT_CONFIRMATION_WINDOW_MS = int(os.environ.get("TROT_CONFIRMATION_WINDOW_MS", "1500"))
+COMMAND_RESULT_PATH = os.environ.get("COMMAND_RESULT_PATH", "/tmp/vla_command_result.json")
+ROBOT_STATE_PATH = os.environ.get("ROBOT_STATE_PATH", "/tmp/vla_robot_state.json")
+DEFAULT_ROBOT_IP_ADDRESS = os.environ.get("ROBOT_IP_ADDRESS", "192.168.0.8")
+ROBOT_STREAM_POSTFIX = ":8080/stream?topic=/usb_cam/image_raw"
+ROBOT_STREAM_URL = f"http://{DEFAULT_ROBOT_IP_ADDRESS}{ROBOT_STREAM_POSTFIX}"
 _last_intent_sent = {"text": None, "ts": 0.0}
 _trot_confirmation = {"count": 0, "ts": 0.0}
 
@@ -274,6 +279,34 @@ async def index(request):
     """Serve the main HTML page"""
     content = open(os.path.join(os.path.dirname(__file__), "static", "index.html"), "r").read()
     return web.Response(content_type="text/html", text=content)
+
+
+async def pave_console(request):
+    """Serve the lightweight OpenPAVE console."""
+    content = open(os.path.join(os.path.dirname(__file__), "static", "pave.html"), "r").read()
+    content = content.replace("__ROBOT_STREAM_URL__", ROBOT_STREAM_URL)
+    return web.Response(content_type="text/html", text=content)
+
+
+def read_json_file(path: str):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def pave_runtime_status(request):
+    """Return latest Stage 1 command and robot state feedback files."""
+    payload = {
+        "command_result_path": COMMAND_RESULT_PATH,
+        "robot_state_path": ROBOT_STATE_PATH,
+        "command_result": read_json_file(COMMAND_RESULT_PATH),
+        "robot_state": read_json_file(ROBOT_STATE_PATH),
+    }
+    return web.Response(content_type="application/json", text=json.dumps(payload, default=str))
 
 
 async def models(request):
@@ -976,10 +1009,12 @@ async def create_app(test_mode=False):
     # Create web application
     app = web.Application()
     app.router.add_get("/", index)
+    app.router.add_get("/pave", pave_console)
     app.router.add_get("/models", models)
     app.router.add_get("/detect-services", detect_services)
     app.router.add_get("/ws", websocket_handler)
     app.router.add_post("/offer", offer)
+    app.router.add_get("/api/pave/runtime", pave_runtime_status)
 
     # RTSP endpoints
     app.router.add_post("/api/rtsp/start", rtsp_start)
@@ -1125,6 +1160,14 @@ def main():
         default="Describe what you see in this image in one sentence.",
         help="Prompt to send to VLM (default: 'Describe what you see...')",
     )
+    parser.add_argument(
+        "--robot-ip-address",
+        default=DEFAULT_ROBOT_IP_ADDRESS,
+        help=(
+            "Robot camera IP address for the OpenPAVE console default stream URL "
+            f"(default: {DEFAULT_ROBOT_IP_ADDRESS})"
+        ),
+    )
     # Get default SSL cert paths (platform-specific)
     default_config_dir = get_app_config_dir()
     default_cert_path = str(default_config_dir / "cert.pem")
@@ -1148,6 +1191,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    global ROBOT_STREAM_URL
+    robot_ip_address = args.robot_ip_address.strip()
+    ROBOT_STREAM_URL = f"http://{robot_ip_address}{ROBOT_STREAM_POSTFIX}"
 
     # Cloud deployment: env overrides for default API base, model, and frame interval
     if os.environ.get("LIVE_VLM_API_BASE"):
