@@ -381,7 +381,7 @@
                 </select>
                 <textarea id="promptInput">Output exactly ONE word: TROT or STOP. No other text.</textarea>
                 <div class="buttons">
-                    <button class="primary" id="applyPromptBtn">Apply Prompt</button>
+                    <button class="primary" id="applyPromptBtn">Run Inference</button>
                 </div>
             </section>
 
@@ -601,14 +601,49 @@
 
         async function applyPrompt() {
             connectWebSocket();
-            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-                setPill(wsStatus, 'WS not ready', 'warn');
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                vlmResult.textContent = 'Prompt is empty.';
                 return;
             }
-            websocket.send(JSON.stringify({
-                type: 'update_prompt',
-                prompt: promptInput.value.trim(),
-            }));
+
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                setPill(wsStatus, 'WS not ready', 'warn');
+            } else {
+                websocket.send(JSON.stringify({
+                    type: 'update_prompt',
+                    prompt,
+                    max_tokens: 64,
+                }));
+            }
+
+            vlmResult.textContent = 'Running inference...';
+            vlmOverlay.textContent = 'Running inference...';
+
+            try {
+                const response = await fetch('/api/pave/infer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        prompt,
+                        max_tokens: 64,
+                    }),
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.error || `Inference failed with HTTP ${response.status}`);
+                }
+                vlmResult.textContent = payload.text || '';
+                vlmOverlay.textContent = payload.text || '';
+                if (payload.metrics) {
+                    const latency = Math.round(payload.metrics.last_latency_ms || 0);
+                    vlmResult.textContent += `\n\nlatency_ms: ${latency}\ntotal_inferences: ${payload.metrics.total_inferences || 0}`;
+                }
+            } catch (error) {
+                vlmResult.textContent = `Inference error: ${error.message}`;
+                vlmOverlay.textContent = error.message;
+            }
         }
 
         promptPreset.addEventListener('change', () => {

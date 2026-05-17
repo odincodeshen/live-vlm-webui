@@ -171,6 +171,68 @@ class VLMService:
             logger.error(f"Error analyzing image: {e}")
             return f"Error: {str(e)}"
 
+    async def analyze_text(self, prompt: str, max_tokens: Optional[int] = None) -> str:
+        """
+        Run a text-only inference request through the configured OpenAI-compatible API.
+
+        This lets the OpenPAVE console validate the VLM backend and prompt/result path
+        without requiring a camera frame.
+        """
+        max_tokens = max_tokens if max_tokens is not None else self.max_tokens
+
+        try:
+            start_time = time.perf_counter()
+            messages = [{"role": "user", "content": prompt}]
+            self._last_request_payload = {
+                "model": self.model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": 0.0,
+            }
+
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.0,
+            )
+
+            try:
+                self._last_response_payload = (
+                    response.model_dump() if hasattr(response, "model_dump") else response.dict()
+                )
+            except Exception:
+                self._last_response_payload = {
+                    "id": getattr(response, "id", None),
+                    "model": getattr(response, "model", None),
+                    "choices": [
+                        {
+                            "index": getattr(c, "index", i),
+                            "message": {
+                                "role": getattr(getattr(c, "message", None), "role", None),
+                                "content": getattr(getattr(c, "message", None), "content", None),
+                            },
+                            "finish_reason": getattr(c, "finish_reason", None),
+                        }
+                        for i, c in enumerate(getattr(response, "choices", []))
+                    ],
+                    "usage": getattr(response, "usage", None),
+                }
+
+            inference_time = time.perf_counter() - start_time
+            self.last_inference_time = inference_time
+            self.total_inferences += 1
+            self.total_inference_time += inference_time
+
+            result = response.choices[0].message.content.strip()
+            self.current_response = result
+            logger.info(f"VLM text response: {result} (latency: {inference_time*1000:.0f}ms)")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error running text inference: {e}")
+            return f"Error: {str(e)}"
+
     def get_last_request_payload(self) -> Optional[dict]:
         """
         Return the last request payload sent to the API (for debug).

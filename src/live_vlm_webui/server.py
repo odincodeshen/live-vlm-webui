@@ -309,6 +309,45 @@ async def pave_runtime_status(request):
     return web.Response(content_type="application/json", text=json.dumps(payload, default=str))
 
 
+async def pave_infer(request):
+    """Run a text-only inference request for the OpenPAVE console."""
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "invalid JSON body"}, status=400)
+
+    prompt = str(data.get("prompt", "")).strip()
+    if not prompt:
+        return web.json_response({"error": "prompt is required"}, status=400)
+
+    session_id = str(data.get("session_id", "")).strip() or "default"
+    max_tokens = data.get("max_tokens", 64)
+    try:
+        max_tokens = max(1, min(int(max_tokens), 512))
+    except (TypeError, ValueError):
+        return web.json_response({"error": "max_tokens must be an integer"}, status=400)
+
+    session = get_or_create_session(session_id)
+    svc = session["vlm_service"]
+    svc.update_prompt(prompt, max_tokens)
+    text = await svc.analyze_text(prompt, max_tokens=max_tokens)
+    metrics = svc.get_metrics()
+    maybe_post_intent(text)
+
+    message = json.dumps({"type": "vlm_response", "text": text, "metrics": metrics})
+    send_to_session(session_id, message)
+
+    return web.json_response(
+        {
+            "text": text,
+            "metrics": metrics,
+            "model": svc.model,
+            "api_base": svc.api_base,
+            "session_id": session_id,
+        }
+    )
+
+
 async def models(request):
     """Return available models from the VLM API"""
     try:
@@ -1015,6 +1054,7 @@ async def create_app(test_mode=False):
     app.router.add_get("/ws", websocket_handler)
     app.router.add_post("/offer", offer)
     app.router.add_get("/api/pave/runtime", pave_runtime_status)
+    app.router.add_post("/api/pave/infer", pave_infer)
 
     # RTSP endpoints
     app.router.add_post("/api/rtsp/start", rtsp_start)
