@@ -49,18 +49,48 @@ import time
 
 INTENT_INGRESS_URL = os.environ.get("INTENT_INGRESS_URL", "http://127.0.0.1:7071/intent")
 INTENT_DEDUP_MS = int(os.environ.get("INTENT_DEDUP_MS", "300"))
+INTENT_FORWARDING_ENABLED = os.environ.get("INTENT_FORWARDING_ENABLED", "1").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+TROT_CONFIRMATIONS = max(1, int(os.environ.get("TROT_CONFIRMATIONS", "2")))
+TROT_CONFIRMATION_WINDOW_MS = int(os.environ.get("TROT_CONFIRMATION_WINDOW_MS", "1500"))
 _last_intent_sent = {"text": None, "ts": 0.0}
+_trot_confirmation = {"count": 0, "ts": 0.0}
 
 def maybe_post_intent(text: str):
     """
     Post STOP/TROT to local intent_ingress (file bus writer).
     Safe: swallow exceptions; does not break WebUI.
     """
+    if not INTENT_FORWARDING_ENABLED:
+        return
+
     t = (text or "").strip().upper()
     if t not in ("STOP", "TROT"):
         return
 
     now = time.time() * 1000.0
+
+    if t == "STOP":
+        _trot_confirmation["count"] = 0
+        _trot_confirmation["ts"] = 0.0
+
+    if t == "TROT" and TROT_CONFIRMATIONS > 1:
+        if now - _trot_confirmation["ts"] > TROT_CONFIRMATION_WINDOW_MS:
+            _trot_confirmation["count"] = 0
+        _trot_confirmation["count"] += 1
+        _trot_confirmation["ts"] = now
+        if _trot_confirmation["count"] < TROT_CONFIRMATIONS:
+            logger.info(
+                "Holding TROT until confirmation %s/%s",
+                _trot_confirmation["count"],
+                TROT_CONFIRMATIONS,
+            )
+            return
+        _trot_confirmation["count"] = 0
+
     if _last_intent_sent["text"] == t and (now - _last_intent_sent["ts"]) < INTENT_DEDUP_MS:
         return
 
